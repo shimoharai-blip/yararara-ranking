@@ -1,9 +1,10 @@
 from googleapiclient.discovery import build
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import csv
 import os
 import re
 
+JST = timezone(timedelta(hours=9))
 API_KEY = os.getenv("API_KEY")  # GitHub Actions用
 
 # -------------------------
@@ -108,7 +109,7 @@ def make_ranking(videos, details):
 # CSV 保存
 # -------------------------
 def save_csv(ranking):
-    collected_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    collected_at = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
     filename = "yararara_ranking.csv"
 
     with open(filename, "w", newline="", encoding="utf-8") as f:
