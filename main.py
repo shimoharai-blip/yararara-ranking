@@ -74,8 +74,15 @@ def fetch_video_details(video_ids):
 
         for item in res["items"]:
             vid = item["id"]
+
+            # duration が無い動画を安全にスキップ
+            if "contentDetails" not in item or "duration" not in item["contentDetails"]:
+                print(f"⚠ duration が無い動画をスキップ: {vid}")
+                continue
+
             view_count = int(item["statistics"]["viewCount"])
             duration = item["contentDetails"]["duration"]
+
             details[vid] = {
                 "views": view_count,
                 "duration": duration,
