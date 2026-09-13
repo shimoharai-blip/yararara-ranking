@@ -4,6 +4,7 @@ import csv
 import os
 import re
 
+# JST タイムゾーン
 JST = timezone(timedelta(hours=9))
 API_KEY = os.getenv("API_KEY")  # GitHub Actions用
 
@@ -49,7 +50,7 @@ def filter_yararara(videos):
     return result
 
 # -------------------------
-# ISO8601 → 秒数変換
+# ISO8601 → 秒数変換（H/M/S 全対応）
 # -------------------------
 def duration_to_seconds(duration):
     match = re.match(r'PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?', duration)
@@ -75,19 +76,20 @@ def fetch_video_details(video_ids):
         for item in res["items"]:
             vid = item["id"]
 
-            # duration が無い動画を安全にスキップ
+            # duration 欠損動画をスキップ
             if "contentDetails" not in item or "duration" not in item["contentDetails"]:
                 print(f"⚠ duration が無い動画をスキップ: {vid}")
                 continue
 
-            view_count = int(item["statistics"]["viewCount"])
             duration = item["contentDetails"]["duration"]
+            view_count = int(item["statistics"]["viewCount"])
+            sec = duration_to_seconds(duration)
 
             details[vid] = {
                 "views": view_count,
                 "duration": duration,
-                "seconds": duration_to_seconds(duration),
-                "isShort": duration_to_seconds(duration) <= 60
+                "seconds": sec,
+                "isShort": sec <= 60
             }
 
     return details
@@ -114,7 +116,7 @@ def make_ranking(videos, details):
     return ranking
 
 # -------------------------
-# CSV 保存
+# CSV 保存（ヘッダー1行に統合）
 # -------------------------
 def save_csv(ranking):
     collected_at = datetime.now(JST).strftime("%Y-%m-%d %H:%M:%S")
@@ -123,10 +125,12 @@ def save_csv(ranking):
     with open(filename, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
 
-        # ✔ ヘッダー行は 1 行だけにする
-        writer.writerow(["rank", "title", "videoId", "views", "duration", "seconds", "isShort", "collected_at"])
+        # GitHub が壊れた CSV と判定しないようヘッダーは1行に統合
+        writer.writerow([
+            "rank", "title", "videoId", "views",
+            "duration", "seconds", "isShort", "collected_at"
+        ])
 
-        # ✔ collected_at を各行に入れる
         for i, r in enumerate(ranking, start=1):
             writer.writerow([
                 i,
@@ -167,6 +171,10 @@ def main():
 
     print("📥 再生数＋duration を取得中…")
     details = fetch_video_details(video_ids)
+
+    # ★ duration 欠損動画を videos から除外（KeyError 防止）
+    videos = [v for v in videos if v["videoId"] in details]
+    print(f"✔ duration 取得成功動画のみ: {len(videos)} 件")
 
     print("🏆 ランキング生成中…")
     ranking = make_ranking(videos, details)
