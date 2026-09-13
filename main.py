@@ -108,12 +108,15 @@ def main():
 
     print("📥 再生数を取得中…")
     view_stats = fetch_view_count(video_ids)
+   
+    # 重複排除（videoIdでユニーク化）
+    df = df.drop_duplicates(subset="videoId")
 
     print("🏆 ランキング生成中…")
     ranking = make_ranking(videos, view_stats)
 
-    # 100位までに制限
-    ranking = ranking[:100]
+    # 1000位までに制限
+    ranking = ranking[:1000]
 
     print("💾 CSV保存中…")
     filename = save_csv(ranking)
