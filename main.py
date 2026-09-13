@@ -122,9 +122,11 @@ def save_csv(ranking):
 
     with open(filename, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["collected_at", collected_at])
-        writer.writerow(["rank", "title", "videoId", "views", "duration", "seconds", "isShort"])
 
+        # ✔ ヘッダー行は 1 行だけにする
+        writer.writerow(["rank", "title", "videoId", "views", "duration", "seconds", "isShort", "collected_at"])
+
+        # ✔ collected_at を各行に入れる
         for i, r in enumerate(ranking, start=1):
             writer.writerow([
                 i,
@@ -133,7 +135,8 @@ def save_csv(ranking):
                 r["views"],
                 r["duration"],
                 r["seconds"],
-                r["isShort"]
+                r["isShort"],
+                collected_at
             ])
 
     print("📌 CSV生成場所:", os.path.abspath(filename))
