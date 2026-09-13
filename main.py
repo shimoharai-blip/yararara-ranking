@@ -2,9 +2,13 @@ from googleapiclient.discovery import build
 from datetime import datetime
 import csv
 import os
+import re
 
 API_KEY = os.getenv("API_KEY")  # GitHub Actions用
 
+# -------------------------
+# 動画検索
+# -------------------------
 def search_yararara_all():
     youtube = build("youtube", "v3", developerKey=API_KEY)
 
@@ -32,7 +36,9 @@ def search_yararara_all():
 
     return videos
 
-
+# -------------------------
+# タイトルフィルタ
+# -------------------------
 def filter_yararara(videos):
     result = []
     for v in videos:
@@ -41,31 +47,55 @@ def filter_yararara(videos):
             result.append(v)
     return result
 
+# -------------------------
+# ISO8601 → 秒数変換
+# -------------------------
+def duration_to_seconds(duration):
+    match = re.match(r'PT(?:(\d+)M)?(?:(\d+)S)?', duration)
+    minutes = int(match.group(1)) if match.group(1) else 0
+    seconds = int(match.group(2)) if match.group(2) else 0
+    return minutes * 60 + seconds
 
-def fetch_view_count(video_ids):
+# -------------------------
+# 再生数＋duration 取得
+# -------------------------
+def fetch_video_details(video_ids):
     youtube = build("youtube", "v3", developerKey=API_KEY)
 
-    stats = {}
+    details = {}
     for i in range(0, len(video_ids), 50):
         chunk = video_ids[i:i+50]
         res = youtube.videos().list(
             id=",".join(chunk),
-            part="statistics"
+            part="statistics,contentDetails"
         ).execute()
 
         for item in res["items"]:
-            stats[item["id"]] = int(item["statistics"]["viewCount"])
+            vid = item["id"]
+            view_count = int(item["statistics"]["viewCount"])
+            duration = item["contentDetails"]["duration"]
+            details[vid] = {
+                "views": view_count,
+                "duration": duration,
+                "seconds": duration_to_seconds(duration),
+                "isShort": duration_to_seconds(duration) <= 60
+            }
 
-    return stats
+    return details
 
-
-def make_ranking(videos, view_stats):
+# -------------------------
+# ランキング生成
+# -------------------------
+def make_ranking(videos, details):
     ranking = sorted(
         [
             {
                 "title": v["title"],
                 "videoId": v["videoId"],
-                "views": view_stats.get(v["videoId"], 0)
+                "views": details[v["videoId"]]["views"],
+                "duration": details[v["videoId"]]["duration"],
+                "seconds": details[v["videoId"]]["seconds"],
+                "isShort": details[v["videoId"]]["isShort"]
             }
             for v in videos
         ],
@@ -74,7 +104,9 @@ def make_ranking(videos, view_stats):
     )
     return ranking
 
-
+# -------------------------
+# CSV 保存
+# -------------------------
 def save_csv(ranking):
     collected_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     filename = "yararara_ranking.csv"
@@ -82,16 +114,25 @@ def save_csv(ranking):
     with open(filename, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
         writer.writerow(["collected_at", collected_at])
-        writer.writerow(["rank", "title", "videoId", "views"])
+        writer.writerow(["rank", "title", "videoId", "views", "duration", "seconds", "isShort"])
+
         for i, r in enumerate(ranking, start=1):
-            writer.writerow([i, r["title"], r["videoId"], r["views"]])
+            writer.writerow([
+                i,
+                r["title"],
+                r["videoId"],
+                r["views"],
+                r["duration"],
+                r["seconds"],
+                r["isShort"]
+            ])
 
-    # ★ CSV の絶対パスをログに出す
     print("📌 CSV生成場所:", os.path.abspath(filename))
-
     return filename
 
-
+# -------------------------
+# メイン処理
+# -------------------------
 def main():
     print("📂 現在の作業ディレクトリ:", os.getcwd())
 
@@ -103,7 +144,7 @@ def main():
     videos = filter_yararara(videos)
     print(f"✔ フィルタ後: {len(videos)} 件")
 
-    # 重複排除（videoIdでユニーク化）
+    # 重複排除
     unique = {}
     for v in videos:
         unique[v["videoId"]] = v
@@ -112,11 +153,11 @@ def main():
 
     video_ids = [v["videoId"] for v in videos]
 
-    print("📥 再生数を取得中…")
-    view_stats = fetch_view_count(video_ids)
+    print("📥 再生数＋duration を取得中…")
+    details = fetch_video_details(video_ids)
 
     print("🏆 ランキング生成中…")
-    ranking = make_ranking(videos, view_stats)
+    ranking = make_ranking(videos, details)
 
     ranking = ranking[:1000]
 
@@ -125,11 +166,10 @@ def main():
 
     print("\n=== ヤラララ / YARARARA 再生数ランキング（1000位まで） ===\n")
     for i, r in enumerate(ranking, start=1):
-        print(f"{i:2d}位  {r['views']:>10}回  {r['title']}")
+        print(f"{i:2d}位  {r['views']:>10}回  {r['title']}  (Short={r['isShort']})")
 
     print(f"\n📁 保存先: {filename}")
     print("🎉 完了！")
-
 
 if __name__ == "__main__":
     main()
