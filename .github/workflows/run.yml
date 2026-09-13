@@ -1,0 +1,27 @@
+name: Yararara Ranking
+
+on:
+  schedule:
+    - cron: "0 15 * * *"   # JST 0:00（UTC 15:00）
+  workflow_dispatch:       # 手動実行ボタン
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install google-api-python-client
+
+      - name: Run script
+        env:
+          API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+        run: python main.py
