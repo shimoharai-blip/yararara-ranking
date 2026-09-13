@@ -2,8 +2,8 @@ name: Yararara Ranking
 
 on:
   schedule:
-    - cron: "0 15 * * *"   # JST 0:00（UTC 15:00）
-  workflow_dispatch:       # 手動実行ボタン
+    - cron: "0 15 * * *"   # JST 0:00
+  workflow_dispatch:
 
 jobs:
   run:
@@ -12,6 +12,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # コミットに必須
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -25,3 +27,14 @@ jobs:
         env:
           API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: python main.py
+
+      - name: Commit CSV
+        run: |
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add yararara_ranking.csv
+
+          git commit -m "Update CSV ($(date '+%Y-%m-%d %H:%M:%S'))" || echo "No changes to commit"
+
+          git push
