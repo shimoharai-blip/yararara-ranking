@@ -1,8 +1,6 @@
 name: Yararara Ranking
 
 on:
-  schedule:
-    - cron: "0 15 * * *"   # JST 0:00
   workflow_dispatch:
 
 jobs:
