@@ -27,13 +27,13 @@ jobs:
           API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
         run: python main.py
 
-      - name: Commit CSV
+      - name: Commit ranking and video master CSVs
         working-directory: ${{ github.workspace }}
         run: |
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
 
-          git add yararara_ranking.csv
-          git commit -m "Update CSV ($(date '+%Y-%m-%d %H:%M:%S'))" || echo "No changes to commit"
+          git add yararara_ranking.csv yararara_video_master.csv
+          git commit -m "Update ranking and video master CSVs ($(date '+%Y-%m-%d %H:%M:%S'))" || echo "No changes to commit"
 
           git push
