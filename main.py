@@ -282,7 +282,10 @@ def save_ranking(master, timestamp):
         ),
         reverse=True,
     )
-
+   
+    # 再生数上位3000件だけランキングに出力
+    rows = rows[:3000]
+    
     temp_file = RANKING_FILE + ".tmp"
     with open(temp_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=RANKING_FIELDS)
